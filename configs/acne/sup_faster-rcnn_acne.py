@@ -8,15 +8,15 @@ _base_ = [
 # model
 model = dict(
     data_preprocessor=dict(
-        mean=[142.566, 104.840, 90.092],
-        std=[78.085, 62.782, 57.795],
+        mean=[150.058, 110.453, 95.142],
+        std=[52.055, 44.240, 41.592],
     ),
     roi_head=dict(bbox_head=dict(num_classes=10)),
 )
 
 # dataset
 # supervised for 10% labeled acne data
-train_dataloader = dict(dataset=dict(ann_file='semi_anns/instances_train2017.1@10.0.json'))
+# train_dataloader = dict(dataset=dict(ann_file='semi_anns/instances_train2017.1@10.0.json'))
 # train_dataloader = dict(dataset=dict(ann_file='semi_anns/instances_train2017.2@10.0.json'))
 # train_dataloader = dict(dataset=dict(ann_file='semi_anns/instances_train2017.3@10.0.json'))
 # train_dataloader = dict(dataset=dict(ann_file='semi_anns/instances_train2017.4@10.0.json'))

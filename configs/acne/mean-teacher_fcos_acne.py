@@ -10,8 +10,8 @@ _base_ = [
 
 # model
 detector = _base_.model
-detector.data_preprocessor.mean = [142.566, 104.840, 90.092]
-detector.data_preprocessor.std = [78.085, 62.782, 57.795]
+detector.data_preprocessor.mean = [150.058, 110.453, 95.142]
+detector.data_preprocessor.std = [52.055, 44.240, 41.592]
 detector.bbox_head.num_classes = 10
 
 model = dict(

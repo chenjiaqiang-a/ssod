@@ -7,8 +7,8 @@ _base_ = [
 # model
 model = dict(
     data_preprocessor=dict(
-        mean=[142.566, 104.840, 90.092],
-        std=[78.085, 62.782, 57.795],
+        mean=[150.058, 110.453, 95.142],
+        std=[52.055, 44.240, 41.592],
     ),
     bbox_head=dict(num_classes=10),
 )
