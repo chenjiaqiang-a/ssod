@@ -74,25 +74,10 @@ class PriorsMatch(BaseDetector):
                              batch_data_samples_student: SampleList):
         self.teacher.eval()
         x = self.teacher.extract_feat(batch_inputs)
-        bbox_head = self.teacher.bbox_head
-        num_imgs = len(batch_data_samples_teacher)
-        bg_class_ind = self.num_classes
 
-        cls_scores, bbox_preds, centernesses = bbox_head(x)
-        assert len(cls_scores) == len(bbox_preds) == len(centernesses)
-
-        mlvl_scores = []
-        mlvl_labels = []
-        for cls_score in cls_scores:
-            if bbox_head.use_sigmoid_cls:
-                scores = cls_score.sigmoid()
-            else:
-                scores = cls_score.softmax(1)[:, :-1]
-            score_thr = self.semi_train_cfg.get('bg_score_thr', 0.05)
-            max_scores, labels = torch.max(scores, dim=1, keepdim=True)
-            labels[max_scores < score_thr] = bg_class_ind
-            mlvl_scores.append(scores)
-            mlvl_labels.append(labels)
+        batch_input_shape_teacher = batch_data_samples_teacher[0].batch_input_shape
+        batch_input_shape_student = batch_data_samples_student[0].batch_input_shape
+        feat_scales = [batch_input_shape_teacher[0] // feat.size(2) for feat in x]
 
         homography_matrix_list = []
         ori_shapes = []
@@ -107,6 +92,32 @@ class PriorsMatch(BaseDetector):
             homography_matrix_list.append(homography_matrix)
             ori_shapes.append(data_samples_teacher.img_shape)
             img_shapes.append(data_samples_student.img_shape)
+        feature_map_project_args = dict(
+            feat_scales=feat_scales,
+            homography_matrix_list=homography_matrix_list,
+            ori_shapes=ori_shapes,
+            img_shapes=img_shapes,
+            batch_input_shape=batch_input_shape_student)
+
+        bbox_head = self.teacher.bbox_head
+        num_imgs = len(batch_data_samples_teacher)
+        bg_class_ind = self.num_classes
+
+        cls_scores, bbox_preds, _ = bbox_head(x)
+        assert len(cls_scores) == len(bbox_preds)
+
+        mlvl_scores = []
+        mlvl_labels = []
+        for cls_score in cls_scores:
+            if bbox_head.use_sigmoid_cls:
+                scores = cls_score.sigmoid()
+            else:
+                scores = cls_score.softmax(1)[:, :-1]
+            score_thr = self.semi_train_cfg.get('bg_score_thr', 0.05)
+            max_scores, labels = torch.max(scores, dim=1, keepdim=True)
+            labels[max_scores < score_thr] = bg_class_ind
+            mlvl_scores.append(scores)
+            mlvl_labels.append(labels)
 
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
         all_level_points = bbox_head.prior_generator.grid_priors(
@@ -133,9 +144,9 @@ class PriorsMatch(BaseDetector):
                        for bboxes, (h, w) in zip(mlvl_bboxes, featmap_sizes)]
 
         mlvl_labels = mlvl_feature_map_project([labels + 1 for labels in mlvl_labels],
-                                               homography_matrix_list, ori_shapes, img_shapes)
-        mlvl_scores = mlvl_feature_map_project(mlvl_scores, homography_matrix_list, ori_shapes, img_shapes)
-        mlvl_bboxes = mlvl_feature_map_project(mlvl_bboxes, homography_matrix_list, ori_shapes, img_shapes)
+                                               **feature_map_project_args)
+        mlvl_scores = mlvl_feature_map_project(mlvl_scores, **feature_map_project_args)
+        mlvl_bboxes = mlvl_feature_map_project(mlvl_bboxes, **feature_map_project_args)
 
         flatten_labels = torch.cat([labels.permute(0, 2, 3, 1).reshape(-1) - 1
                                     for labels in mlvl_labels])

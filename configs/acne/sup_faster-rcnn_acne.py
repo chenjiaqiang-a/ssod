@@ -16,8 +16,11 @@ model = dict(
 
 # dataset
 # supervised for 10% labeled acne data
-# train_dataloader = dict(dataset=dict(ann_file='semi_anns/instances_train2017.1@10.0.json'))
+train_dataloader = dict(dataset=dict(ann_file='semi_anns/instances_train2017.1@10.0.json'))
 # train_dataloader = dict(dataset=dict(ann_file='semi_anns/instances_train2017.2@10.0.json'))
 # train_dataloader = dict(dataset=dict(ann_file='semi_anns/instances_train2017.3@10.0.json'))
 # train_dataloader = dict(dataset=dict(ann_file='semi_anns/instances_train2017.4@10.0.json'))
 # train_dataloader = dict(dataset=dict(ann_file='semi_anns/instances_train2017.5@10.0.json'))
+
+# runtime
+default_hooks = dict(checkpoint=dict(max_keep_ckpts=2))

@@ -92,7 +92,11 @@ class PriorsMatch(BaseDetector):
                              batch_data_samples_student: SampleList):
         self.teacher.eval()
         assert self.teacher.with_bbox, 'Bbox head must be implemented.'
+
         x = self.teacher.extract_feat(batch_inputs)
+        batch_input_shape_teacher = batch_data_samples_teacher[0].batch_input_shape
+        batch_input_shape_student = batch_data_samples_student[0].batch_input_shape
+        feat_scales = [batch_input_shape_teacher[0] // feat.size(2) for feat in x]
 
         homography_matrix_list = []
         ori_shapes = []
@@ -108,11 +112,17 @@ class PriorsMatch(BaseDetector):
             ori_shapes.append(data_samples_teacher.img_shape)
             img_shapes.append(data_samples_student.img_shape)
 
+        feature_map_project_args = dict(
+            feat_scales=feat_scales,
+            homography_matrix_list=homography_matrix_list,
+            ori_shapes=ori_shapes,
+            img_shapes=img_shapes,
+            batch_input_shape=batch_input_shape_student)
         rpn_results_list, rpn_pseudo_instances = self.get_rpn_pseudo_instances(
-            x, batch_data_samples_teacher, homography_matrix_list, ori_shapes, img_shapes)
+            x, batch_data_samples_teacher, feature_map_project_args)
 
         roi_pseudo_instances = self.get_roi_pseudo_instances(
-            x, rpn_results_list, homography_matrix_list, ori_shapes, img_shapes)
+            x, rpn_results_list, feature_map_project_args)
 
         return rpn_pseudo_instances, roi_pseudo_instances
 
@@ -120,7 +130,7 @@ class PriorsMatch(BaseDetector):
     def get_rpn_pseudo_instances(self,
                                  x: Tuple[Tensor],
                                  batch_data_samples: SampleList,
-                                 homography_matrix_list, ori_shapes, img_shapes):
+                                 feature_map_project_args):
         rpn_head = self.teacher.rpn_head
         cls_scores, bbox_preds = rpn_head(x)
 
@@ -140,7 +150,7 @@ class PriorsMatch(BaseDetector):
             mlvl_scores = [cls_score.softmax(1)[:] for cls_score in cls_scores]
 
         mlvl_scores = mlvl_feature_map_project(
-            mlvl_scores, homography_matrix_list, ori_shapes, img_shapes)
+            mlvl_scores, **feature_map_project_args)
 
         return rpn_results_list, {'mlvl_scores': mlvl_scores}
 
@@ -148,7 +158,7 @@ class PriorsMatch(BaseDetector):
     def get_roi_pseudo_instances(self,
                                  x: Tuple[Tensor],
                                  rpn_results_list: InstanceList,
-                                 homography_matrix_list, ori_shapes, img_shapes):
+                                 project_args: dict):
         roi_head = self.teacher.roi_head
 
         proposals_list = [res.bboxes for res in rpn_results_list]
@@ -169,7 +179,10 @@ class PriorsMatch(BaseDetector):
         }
 
         for proposals, cls_score, bbox_pred, homography_matrix, ori_shape, img_shape in zip(
-                proposals_list, cls_scores, bbox_preds, homography_matrix_list, ori_shapes, img_shapes):
+                proposals_list, cls_scores, bbox_preds,
+                project_args['homography_matrix_list'],
+                project_args['ori_shapes'],
+                project_args['img_shapes']):
             num_proposals = proposals.size(0)
             if num_proposals == 0:
                 pseudo_instances['proposals'].append(proposals)

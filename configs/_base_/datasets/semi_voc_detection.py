@@ -23,6 +23,7 @@ geometric = [
     [dict(type='TranslateX')],
     [dict(type='TranslateY')],
 ]
+scale = [(1333, 400), (1333, 1200)]
 
 branch_field = ['sup', 'unsup_teacher', 'unsup_student']
 # pipeline used to augment labeled data,
@@ -30,7 +31,7 @@ branch_field = ['sup', 'unsup_teacher', 'unsup_student']
 sup_pipeline = [
     dict(type='LoadImageFromFile', backend_args=backend_args),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='Resize', scale=(1000, 600), keep_ratio=True),
+    dict(type='RandomResize', scale=scale, keep_ratio=True),
     dict(type='RandomFlip', prob=0.5),
     dict(type='RandAugment', aug_space=color_space, aug_num=1),
     dict(type='FilterAnnotations', min_gt_bbox_wh=(1e-2, 1e-2)),
@@ -43,7 +44,7 @@ sup_pipeline = [
 # pipeline used to augment unlabeled data weakly,
 # which will be sent to teacher model for predicting pseudo instances.
 weak_pipeline = [
-    dict(type='Resize', scale=(1000, 600), keep_ratio=True),
+    dict(type='RandomResize', scale=scale, keep_ratio=True),
     dict(type='RandomFlip', prob=0.5),
     dict(
         type='PackDetInputs',
@@ -55,7 +56,7 @@ weak_pipeline = [
 # pipeline used to augment unlabeled data strongly,
 # which will be sent to student model for unsupervised training.
 strong_pipeline = [
-    dict(type='Resize', scale=(1000, 600), keep_ratio=True),
+    dict(type='RandomResize', scale=scale, keep_ratio=True),
     dict(type='RandomFlip', prob=0.5),
     dict(
         type='RandomOrder',
@@ -86,7 +87,7 @@ unsup_pipeline = [
 
 test_pipeline = [
     dict(type='LoadImageFromFile', backend_args=backend_args),
-    dict(type='Resize', scale=(1000, 600), keep_ratio=True),
+    dict(type='Resize', scale=(1333, 800), keep_ratio=True),
     # avoid bboxes being resized
     dict(type='LoadAnnotations', with_bbox=True),
     dict(
@@ -114,8 +115,8 @@ unlabeled_dataset = dict(
     pipeline=unsup_pipeline,
     backend_args=backend_args)
 
-batch_size = 5
-num_workers = 5
+batch_size = 4
+num_workers = 4
 train_dataloader = dict(
     batch_size=batch_size,
     num_workers=num_workers,
@@ -123,7 +124,7 @@ train_dataloader = dict(
     sampler=dict(
         type='GroupMultiSourceSampler',
         batch_size=batch_size,
-        source_ratio=[1, 4]),
+        source_ratio=[2, 2]),
     dataset=dict(
         type='ConcatDataset',
         ignore_keys=['dataset_type'],

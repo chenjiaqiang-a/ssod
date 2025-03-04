@@ -43,3 +43,6 @@ optim_wrapper = dict(
         type='SGD', lr=0.002, momentum=0.9, weight_decay=0.00004),
     paramwise_cfg=dict(bias_lr_mult=2., bias_decay_mult=0.),
     clip_grad=dict(max_norm=35, norm_type=2))
+
+# runtime
+default_hooks = dict(checkpoint=dict(max_keep_ckpts=2))
